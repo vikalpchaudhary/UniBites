@@ -1,0 +1,33 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Frontend dependencies and builds
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+.env
+.env.local
+
+# Backend dependencies and environments
+backend/venv/
+backend/.venv/
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Databases (optional: exclude if you want users to run seed.py manually)
+backend/unibites.db
+backend/unibites.db-journal
+
+# Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
