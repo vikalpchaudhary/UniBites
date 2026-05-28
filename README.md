@@ -51,8 +51,8 @@ erDiagram
         string name
         string email UNIQUE
         string password_hash
-        string role "student | owner | admin"
-        int outlet_id FK "nullable"
+        string role
+        int outlet_id FK
     }
 
     OUTLET {
