@@ -40,11 +40,11 @@ The platform features a clean, minimalist Apple-style light visual theme and imp
 
 ```mermaid
 erDiagram
-    OUTLET ||--o{ MENU_ITEM : offers
-    USER ||--o{ ORDER : places
-    OUTLET ||--o{ ORDER : receives
-    ORDER ||--o{ ORDER_ITEM : contains
-    MENU_ITEM ||--o{ ORDER_ITEM : ordered_as
+    OUTLET ||--o{ MENU_ITEM : "offers"
+    USER ||--o{ ORDER : "places"
+    OUTLET ||--o{ ORDER : "receives"
+    ORDER ||--o{ ORDER_ITEM : "contains"
+    MENU_ITEM ||--o{ ORDER_ITEM : "ordered_as"
 
     USER {
         int id PK
