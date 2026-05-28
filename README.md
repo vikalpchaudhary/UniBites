@@ -49,7 +49,7 @@ erDiagram
     USER {
         int id PK
         string name
-        string email UNIQUE
+        string email
         string password_hash
         string role
         int outlet_id FK
