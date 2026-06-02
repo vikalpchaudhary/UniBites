@@ -106,7 +106,9 @@ def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
         user_id=user_id,
         outlet_id=order.outlet_id,
         total_amount=total_amount,
-        status="pending"
+        status="pending",
+        payment_method=order.payment_method,
+        payment_status="completed" if order.payment_method == "upi" else "pending"
     )
     db.add(db_order)
     db.commit()

@@ -55,6 +55,8 @@ class Order(Base):
     total_amount = Column(Float, nullable=False)
     status = Column(String, default="pending") # pending, preparing, ready, completed, cancelled
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    payment_method = Column(String, default="cod") # cod, upi
+    payment_status = Column(String, default="pending") # pending, completed
 
     user = relationship("User", back_populates="orders")
     outlet = relationship("Outlet", back_populates="orders")

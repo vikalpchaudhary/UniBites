@@ -83,6 +83,7 @@ class OrderItemResponse(BaseModel):
 class OrderCreate(BaseModel):
     outlet_id: int
     items: List[OrderItemCreate]
+    payment_method: str = "cod"
 
 class OrderStatusUpdate(BaseModel):
     status: str
@@ -96,6 +97,8 @@ class OrderResponse(BaseModel):
     created_at: datetime
     items: List[OrderItemResponse]
     outlet: OutletBase
+    payment_method: str
+    payment_status: str
 
     class Config:
         from_attributes = True

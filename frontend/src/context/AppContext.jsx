@@ -68,7 +68,8 @@ const MOCK_USERS = [
   { id: 2, name: "Devendra Singh", email: "owner@bennett.edu.in", role: "owner", outlet_id: 1 },
   { id: 3, name: "Kathi Shop Owner", email: "kathi_owner@bennett.edu.in", role: "owner", outlet_id: 2 },
   { id: 4, name: "Maggi Shop Owner", email: "maggi_owner@bennett.edu.in", role: "owner", outlet_id: 3 },
-  { id: 5, name: "Food Department Head", email: "admin@bennett.edu.in", role: "admin" }
+  { id: 5, name: "Food Department Head", email: "admin@bennett.edu.in", role: "admin" },
+  { id: 6, name: "Mess Coordinator", email: "mess_coordinator@bennett.edu.in", role: "owner", outlet_id: 4 }
 ];
 
 export const AppProvider = ({ children }) => {
@@ -107,6 +108,28 @@ export const AppProvider = ({ children }) => {
   const [usingMock, setUsingMock] = useState(false);
   const [backendActive, setBackendActive] = useState(false);
   const [users, setUsers] = useState(MOCK_USERS);
+  const [prevStatuses, setPrevStatuses] = useState({});
+
+  // Monitor order list changes for cancellations to notify the student
+  useEffect(() => {
+    if (!user || user.role !== 'student') return;
+    
+    const newStatuses = {};
+    orders.forEach(order => {
+      newStatuses[order.id] = order.status;
+      
+      const prevStatus = prevStatuses[order.id];
+      if (prevStatus && prevStatus !== 'cancelled' && order.status === 'cancelled') {
+        const outletName = order.outlet?.name || "the outlet";
+        if (order.payment_method === 'upi') {
+          alert(`Refund Alert: Your Order #${order.id} from ${outletName} has been cancelled. A refund of ₹${order.total_amount.toFixed(2)} has been initiated to your UPI account.`);
+        } else {
+          alert(`Order Cancelled: Your Order #${order.id} from ${outletName} has been cancelled by the outlet.`);
+        }
+      }
+    });
+    setPrevStatuses(newStatuses);
+  }, [orders, user]);
 
   // Fetch Outlets on load
   const loadOutlets = async () => {
@@ -202,6 +225,10 @@ export const AppProvider = ({ children }) => {
         setUser({ id: 4, name: "Maggi Shop Owner", email, role: "owner", outlet_id: 3 });
         setActivePage('owner-dashboard');
         return { success: true };
+      } else if (email === 'mess_coordinator@bennett.edu.in' && password === 'owner123') {
+        setUser({ id: 6, name: "Mess Coordinator", email, role: "owner", outlet_id: 4 });
+        setActivePage('owner-dashboard');
+        return { success: true };
       } else if (email === 'admin@bennett.edu.in' && password === 'admin123') {
         setUser({ id: 5, name: "Food Department Head", email, role: "admin" });
         setActivePage('admin-dashboard');
@@ -271,7 +298,7 @@ export const AppProvider = ({ children }) => {
   };
 
   // Order Placement
-  const placeOrder = async () => {
+  const placeOrder = async (paymentMethod = 'cod') => {
     if (cart.length === 0) return;
     const outletId = cart[0].item.outlet_id;
     const targetOutlet = outlets.find(o => o.id === outletId);
@@ -281,7 +308,8 @@ export const AppProvider = ({ children }) => {
       items: cart.map(c => ({
         menu_item_id: c.item.id,
         quantity: c.quantity
-      }))
+      })),
+      payment_method: paymentMethod
     };
 
     try {
@@ -308,6 +336,8 @@ export const AppProvider = ({ children }) => {
         outlet_id: outletId,
         total_amount: getCartTotal(),
         status: "pending",
+        payment_method: paymentMethod,
+        payment_status: paymentMethod === 'upi' ? 'completed' : 'pending',
         created_at: new Date().toISOString(),
         outlet: {
           name: targetOutlet.name,

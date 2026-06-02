@@ -272,3 +272,9 @@ body {
   background: #ffffff;
   box-shadow: 0 0 0 3px var(--primary-glow);
 }
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

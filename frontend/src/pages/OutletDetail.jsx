@@ -62,7 +62,10 @@ export default function OutletDetail() {
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '4px' }}>📍 {outlet.location}</p>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Serving hot meals directly to students. Cart handles one outlet checkout at a time.
+            {outlet.name === "BUN Mess Menu Helper" 
+              ? "Daily menu schedule and timings for the central campus dining hall." 
+              : "Serving hot meals directly to students. Cart handles one outlet checkout at a time."
+            }
           </p>
         </div>
       </div>
@@ -104,7 +107,7 @@ export default function OutletDetail() {
       </div>
 
       {/* Two Column Layout (Menu - Cart) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '30px', alignItems: 'start', gridAutoFlow: 'row dense' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: outlet.name === "BUN Mess Menu Helper" ? '1fr' : '1fr 340px', gap: '30px', alignItems: 'start', gridAutoFlow: 'row dense' }}>
         {/* Menu list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {filteredItems.length === 0 ? (
@@ -115,6 +118,7 @@ export default function OutletDetail() {
             filteredItems.map(item => {
               const inCart = cart.find(i => i.item.id === item.id);
               const qty = inCart ? inCart.quantity : 0;
+              const isMess = outlet.name === "BUN Mess Menu Helper";
 
               return (
                 <div 
@@ -141,11 +145,17 @@ export default function OutletDetail() {
                         {item.description}
                       </p>
                     )}
-                    <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>₹{item.price}</span>
+                    {!isMess && (
+                      <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>₹{item.price}</span>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                    {!outlet.is_open ? (
+                    {isMess ? (
+                      <span style={{ fontSize: '0.82rem', color: 'var(--success)', fontWeight: 600, background: 'rgba(16, 185, 129, 0.08)', padding: '6px 12px', borderRadius: '20px' }}>
+                        📋 Included in Mess Card
+                      </span>
+                    ) : !outlet.is_open ? (
                       <span style={{ fontSize: '0.8rem', color: 'var(--danger)', fontWeight: 500 }}>Outlet Closed</span>
                     ) : !item.is_available ? (
                       <span style={{ fontSize: '0.8rem', color: 'var(--danger)', fontWeight: 500 }}>Out of Stock</span>
@@ -176,9 +186,11 @@ export default function OutletDetail() {
         </div>
 
         {/* Cart Sidebar */}
-        <div>
-          <Cart />
-        </div>
+        {outlet.name !== "BUN Mess Menu Helper" && (
+          <div>
+            <Cart />
+          </div>
+        )}
       </div>
     </div>
   );

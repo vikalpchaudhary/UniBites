@@ -86,8 +86,14 @@ export default function Orders() {
                       ))}
                     </div>
                     <div style={{ borderTop: '1px dashed var(--border-color)', marginTop: '12px', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
-                      <span>Total Paid</span>
+                      <span>Total</span>
                       <span style={{ color: 'var(--primary)' }}>₹{order.total_amount.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                      <span>Payment Mode</span>
+                      <span style={{ fontWeight: 600, color: order.payment_method === 'upi' ? 'var(--success)' : 'var(--text-main)' }}>
+                        {order.payment_method === 'upi' ? '📱 UPI (PAID)' : '💵 Cash on Delivery'}
+                      </span>
                     </div>
                   </div>
 

@@ -143,6 +143,7 @@ export default function Auth() {
           <p>🍳 <strong>Dev's Cafe Owner:</strong> owner@bennett.edu.in | <em>owner123</em></p>
           <p>🌯 <strong>Kathi Roll Owner:</strong> kathi_owner@bennett.edu.in | <em>owner123</em></p>
           <p>🍜 <strong>Maggi Hotspot Owner:</strong> maggi_owner@bennett.edu.in | <em>owner123</em></p>
+          <p>🥦 <strong>Mess Coordinator:</strong> mess_coordinator@bennett.edu.in | <em>owner123</em></p>
           <p>👑 <strong>Food Dept Head (Admin):</strong> admin@bennett.edu.in | <em>admin123</em></p>
         </div>
       </div>

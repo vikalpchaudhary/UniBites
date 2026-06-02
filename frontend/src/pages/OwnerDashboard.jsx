@@ -190,6 +190,12 @@ export default function OwnerDashboard() {
                       <span>Total Amount</span>
                       <span>₹{order.total_amount.toFixed(2)}</span>
                     </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginTop: '6px', color: 'var(--text-muted)' }}>
+                      <span>Payment Details</span>
+                      <span style={{ fontWeight: 600, color: order.payment_method === 'upi' ? 'var(--success)' : 'var(--warning)' }}>
+                        {order.payment_method === 'upi' ? '📱 UPI (PAID)' : '💵 COD (COLLECT CASH)'}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Lifecycle Controls */}

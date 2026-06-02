@@ -96,9 +96,17 @@ def seed_db():
             role="owner",
             outlet_id=maggi_hotspot.id
         )
+        owner4 = models.User(
+            name="Mess Coordinator",
+            email="mess_coordinator@bennett.edu.in",
+            password_hash="hashed_owner123",
+            role="owner",
+            outlet_id=mess_outlet.id
+        )
         db.add(owner1)
         db.add(owner2)
         db.add(owner3)
+        db.add(owner4)
         db.commit()
 
         print("Adding Dev's Cafe Menu Items...")
