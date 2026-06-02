@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import InvoiceModal from '../components/InvoiceModal';
 
 export default function Orders() {
   const { orders, setActivePage } = useApp();
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
 
   const getStepNumber = (status) => {
     switch (status) {
@@ -95,6 +97,14 @@ export default function Orders() {
                         {order.payment_method === 'upi' ? '📱 UPI (PAID)' : '💵 Cash on Delivery'}
                       </span>
                     </div>
+
+                    <button
+                      onClick={() => setSelectedInvoiceOrder(order)}
+                      className="btn-secondary"
+                      style={{ marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', fontSize: '0.85rem', padding: '10px 0' }}
+                    >
+                      🧾 View Invoice Receipt
+                    </button>
                   </div>
 
                   {/* Visual Stepper */}
@@ -208,6 +218,13 @@ export default function Orders() {
             );
           })}
         </div>
+      )}
+
+      {selectedInvoiceOrder && (
+        <InvoiceModal 
+          order={selectedInvoiceOrder} 
+          onClose={() => setSelectedInvoiceOrder(null)} 
+        />
       )}
     </div>
   );

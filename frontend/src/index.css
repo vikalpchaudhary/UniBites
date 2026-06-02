@@ -278,3 +278,57 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* Print Invoice Styling */
+@media print {
+  html, body {
+    height: 100% !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+  
+  .invoice-modal-backdrop,
+  .invoice-modal-backdrop .invoice-card,
+  .invoice-modal-backdrop .invoice-card * {
+    visibility: visible;
+  }
+  
+  .invoice-modal-backdrop {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: white !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+  
+  .invoice-modal-backdrop .invoice-card {
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: white !important;
+    color: black !important;
+    box-sizing: border-box !important;
+  }
+
+  .invoice-actions,
+  .invoice-modal-backdrop .invoice-card button {
+    display: none !important;
+  }
+}

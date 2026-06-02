@@ -333,6 +333,7 @@ export const AppProvider = ({ children }) => {
       const mockNewOrder = {
         id: Math.floor(Math.random() * 9000) + 1000,
         user_id: user.id,
+        user: user,
         outlet_id: outletId,
         total_amount: getCartTotal(),
         status: "pending",

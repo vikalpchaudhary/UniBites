@@ -99,6 +99,7 @@ class OrderResponse(BaseModel):
     outlet: OutletBase
     payment_method: str
     payment_status: str
+    user: Optional[UserResponse] = None
 
     class Config:
         from_attributes = True
