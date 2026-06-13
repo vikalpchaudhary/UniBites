@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AppContext = createContext();
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = 'https://unibites-backend.onrender.com';
 
 // Pre-seeded mock data in case backend server is down/not running
 const MOCK_OUTLETS = [
