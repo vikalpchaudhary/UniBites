@@ -1,6 +1,47 @@
+import hashlib
+import secrets
 from sqlalchemy.orm import Session
 from app import models, schemas
 from datetime import datetime
+
+# Password hashing helpers
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    iterations = 100000
+    hash_bytes = hashlib.pbkdf2_hmac(
+        'sha256',
+        password.encode('utf-8'),
+        salt.encode('utf-8'),
+        iterations
+    )
+    hash_hex = hash_bytes.hex()
+    return f"pbkdf2_sha256${iterations}${salt}${hash_hex}"
+
+def verify_password(password: str, hashed: str) -> bool:
+    if not hashed:
+        return False
+    # Backward compatibility with old hashed_ format for local seeding/testing
+    if hashed.startswith("hashed_"):
+        return hashed == f"hashed_{password}"
+    
+    parts = hashed.split('$')
+    if len(parts) != 4 or parts[0] != 'pbkdf2_sha256':
+        return False
+    
+    try:
+        iterations = int(parts[1])
+        salt = parts[2]
+        hash_hex = parts[3]
+        
+        test_bytes = hashlib.pbkdf2_hmac(
+            'sha256',
+            password.encode('utf-8'),
+            salt.encode('utf-8'),
+            iterations
+        )
+        return secrets.compare_digest(test_bytes.hex(), hash_hex)
+    except ValueError:
+        return False
 
 # User operations
 def get_user_by_email(db: Session, email: str):
@@ -10,11 +51,10 @@ def get_user(db: Session, user_id: int):
     return db.query(models.User).filter(models.User.id == user_id).first()
 
 def create_user(db: Session, user: schemas.UserCreate):
-    # In a real app we'd hash the password, here we use a dummy hash or simple store
     db_user = models.User(
         name=user.name,
         email=user.email,
-        password_hash=f"hashed_{user.password}", # simple placeholder for demonstration
+        password_hash=hash_password(user.password),
         role=user.role,
         outlet_id=user.outlet_id
     )
@@ -22,6 +62,7 @@ def create_user(db: Session, user: schemas.UserCreate):
     db.commit()
     db.refresh(db_user)
     return db_user
+
 
 # Outlet operations
 def get_outlets(db: Session, skip: int = 0, limit: int = 100):

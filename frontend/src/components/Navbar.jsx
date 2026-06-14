@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function Navbar() {
-  const { user, logout, switchUserRole, activePage, setActivePage, cart } = useApp();
+  const { user, logout, switchUserRole, activePage, setActivePage, cart, theme, toggleTheme } = useApp();
 
   const cartItemsCount = cart.reduce((acc, curr) => acc + curr.quantity, 0);
 
@@ -56,6 +56,26 @@ export default function Navbar() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <button 
+          onClick={toggleTheme} 
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '1.2rem',
+            cursor: 'pointer',
+            padding: '8px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--text-muted)',
+            transition: 'var(--transition)'
+          }}
+          title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+        >
+          {theme === 'light' ? '🌙' : '☀️'}
+        </button>
+
         {user ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Hi, <strong>{user.name.split(' ')[0]}</strong></span>

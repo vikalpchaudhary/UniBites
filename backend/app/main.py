@@ -1,10 +1,60 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+import jwt
+from datetime import datetime, timedelta
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from typing import List
 
 from app.database import engine, Base, get_db
 from app import models, schemas, crud
+
+# JWT Configurations
+SECRET_KEY = "unibites_secret_key_12345!"
+ALGORITHM = "HS256"
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=7)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+# WebSocket Manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: dict[str, List[WebSocket]] = {}
+
+    async def connect(self, ws_key: str, websocket: WebSocket):
+        await websocket.accept()
+        if ws_key not in self.active_connections:
+            self.active_connections[ws_key] = []
+        self.active_connections[ws_key].append(websocket)
+
+    def disconnect(self, ws_key: str, websocket: WebSocket):
+        if ws_key in self.active_connections:
+            if websocket in self.active_connections[ws_key]:
+                self.active_connections[ws_key].remove(websocket)
+            if not self.active_connections[ws_key]:
+                del self.active_connections[ws_key]
+
+    async def send_personal_message(self, message: dict, ws_key: str):
+        if ws_key in self.active_connections:
+            for connection in self.active_connections[ws_key]:
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    pass
+
+    async def broadcast(self, message: dict):
+        for ws_key, connections in self.active_connections.items():
+            for connection in connections:
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    pass
+
+manager = ConnectionManager()
 
 # Initialize database tables
 Base.metadata.create_all(bind=engine)
@@ -18,11 +68,21 @@ app = FastAPI(
 # CORS setup
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In development, allow all origins. Can restrict to React dev server port later.
+    allow_origins=["*"], # In development, allow all origins.
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    await manager.connect(client_id, websocket)
+    try:
+        while True:
+            # Keep connection alive & listen for potential messages (usually client-to-server)
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(client_id, websocket)
 
 @app.get("/")
 def read_root():
@@ -39,7 +99,7 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         )
     return crud.create_user(db=db, user=user)
 
-@app.post("/api/auth/login", response_model=schemas.UserResponse)
+@app.post("/api/auth/login", response_model=schemas.LoginResponse)
 def login_user(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
     user = crud.get_user_by_email(db, email=login_data.email)
     if not user:
@@ -47,14 +107,28 @@ def login_user(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
-    # Simple check for demo purposes
-    expected_hash = f"hashed_{login_data.password}"
-    if user.password_hash != expected_hash:
+    if not crud.verify_password(login_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
-    return user
+    
+    # Generate token
+    token_data = {
+        "sub": user.email,
+        "id": user.id,
+        "name": user.name,
+        "role": user.role,
+        "outlet_id": user.outlet_id
+    }
+    token = create_access_token(token_data)
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": user
+    }
+
 
 # Outlet Routes
 @app.get("/api/outlets", response_model=List[schemas.OutletResponse])
@@ -119,7 +193,7 @@ def delete_menu_item(item_id: int, db: Session = Depends(get_db)):
 
 # Order Routes
 @app.post("/api/orders", response_model=schemas.OrderResponse)
-def place_order(order: schemas.OrderCreate, user_id: int, db: Session = Depends(get_db)):
+def place_order(order: schemas.OrderCreate, user_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     # simple check if user exists
     user = crud.get_user(db, user_id)
     if not user:
@@ -132,7 +206,14 @@ def place_order(order: schemas.OrderCreate, user_id: int, db: Session = Depends(
     if not outlet.is_open:
         raise HTTPException(status_code=400, detail="Outlet is currently closed")
         
-    return crud.create_order(db=db, order=order, user_id=user_id)
+    db_order = crud.create_order(db=db, order=order, user_id=user_id)
+    
+    # Send WebSocket broadcast to student and outlet
+    order_data = jsonable_encoder(db_order)
+    background_tasks.add_task(manager.send_personal_message, {"type": "order_created", "order": order_data}, f"user_{user_id}")
+    background_tasks.add_task(manager.send_personal_message, {"type": "order_created", "order": order_data}, f"outlet_{db_order.outlet_id}")
+    
+    return db_order
 
 @app.get("/api/orders/user/{user_id}", response_model=List[schemas.OrderResponse])
 def read_user_orders(user_id: int, db: Session = Depends(get_db)):
@@ -146,10 +227,16 @@ def read_order(order_id: int, db: Session = Depends(get_db)):
     return db_order
 
 @app.put("/api/orders/{order_id}/status", response_model=schemas.OrderResponse)
-def update_order_status(order_id: int, status_update: schemas.OrderStatusUpdate, db: Session = Depends(get_db)):
+def update_order_status(order_id: int, status_update: schemas.OrderStatusUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     db_order = crud.update_order_status(db, order_id=order_id, status=status_update.status)
     if not db_order:
         raise HTTPException(status_code=404, detail="Order not found")
+        
+    # Send WebSocket broadcast
+    order_data = jsonable_encoder(db_order)
+    background_tasks.add_task(manager.send_personal_message, {"type": "order_updated", "order": order_data}, f"user_{db_order.user_id}")
+    background_tasks.add_task(manager.send_personal_message, {"type": "order_updated", "order": order_data}, f"outlet_{db_order.outlet_id}")
+    
     return db_order
 
 # Admin Outlet Management Routes

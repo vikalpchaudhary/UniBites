@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AppContext = createContext();
 
-const API_BASE_URL = 'https://unibites-backend.onrender.com';
+export const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://127.0.0.1:8000'
+  : 'https://unibites-backend.onrender.com';
 
 // Pre-seeded mock data in case backend server is down/not running
 const MOCK_OUTLETS = [
@@ -92,6 +94,12 @@ export const AppProvider = ({ children }) => {
     }
   });
 
+  const [token, setToken] = useState(() => localStorage.getItem('unibites_token') || null);
+
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('unibites_theme') || 'light';
+  });
+
   useEffect(() => {
     if (user) {
       localStorage.setItem('unibites_user', JSON.stringify(user));
@@ -99,6 +107,31 @@ export const AppProvider = ({ children }) => {
       localStorage.removeItem('unibites_user');
     }
   }, [user]);
+
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem('unibites_token', token);
+    } else {
+      localStorage.removeItem('unibites_token');
+    }
+  }, [token]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('unibites_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  const getAuthHeaders = () => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  };
 
   const [outlets, setOutlets] = useState(MOCK_OUTLETS);
   const [cart, setCart] = useState([]); // Array of { item, quantity }
@@ -109,6 +142,56 @@ export const AppProvider = ({ children }) => {
   const [backendActive, setBackendActive] = useState(false);
   const [users, setUsers] = useState(MOCK_USERS);
   const [prevStatuses, setPrevStatuses] = useState({});
+
+  // WebSocket lifecycle manager
+  useEffect(() => {
+    if (!user || usingMock || !backendActive) return;
+
+    const clientKey = user.role === 'owner' ? `outlet_${user.outlet_id}` : `user_${user.id}`;
+    const wsUrl = `${API_BASE_URL.replace(/^http/, 'ws')}/ws/${clientKey}`;
+    
+    console.log("Connecting to WebSocket:", wsUrl);
+    let socket;
+    try {
+      socket = new WebSocket(wsUrl);
+      
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          console.log("WebSocket message received:", message);
+          if (message.type === 'order_created') {
+            const newOrder = message.order;
+            setOrders(prev => {
+              if (prev.some(o => o.id === newOrder.id)) return prev;
+              return [newOrder, ...prev];
+            });
+            if (user.role === 'owner') {
+              alert(`🔔 New Incoming Order #${newOrder.id} placed!`);
+            }
+          } else if (message.type === 'order_updated') {
+            const updatedOrder = message.order;
+            setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+          }
+        } catch (err) {
+          console.error("Error parsing WS message:", err);
+        }
+      };
+
+      socket.onclose = (e) => {
+        console.log("WebSocket connection closed:", e.reason);
+      };
+
+      socket.onerror = (err) => {
+        console.error("WebSocket encountered error:", err);
+      };
+    } catch (err) {
+      console.error("Failed to establish WebSocket connection:", err);
+    }
+
+    return () => {
+      if (socket) socket.close();
+    };
+  }, [user, backendActive, usingMock]);
 
   // Monitor order list changes for cancellations to notify the student
   useEffect(() => {
@@ -161,13 +244,17 @@ export const AppProvider = ({ children }) => {
     if (!user) return;
     try {
       if (user.role === 'owner' && user.outlet_id) {
-        const response = await fetch(`${API_BASE_URL}/api/outlets/${user.outlet_id}/orders`);
+        const response = await fetch(`${API_BASE_URL}/api/outlets/${user.outlet_id}/orders`, {
+          headers: getAuthHeaders()
+        });
         if (response.ok) {
           const data = await response.json();
           setOrders(data);
         }
       } else {
-        const response = await fetch(`${API_BASE_URL}/api/orders/user/${user.id}`);
+        const response = await fetch(`${API_BASE_URL}/api/orders/user/${user.id}`, {
+          headers: getAuthHeaders()
+        });
         if (response.ok) {
           const data = await response.json();
           setOrders(data);
@@ -194,10 +281,12 @@ export const AppProvider = ({ children }) => {
       });
       if (response.ok) {
         const data = await response.json();
-        setUser(data);
-        if (data.role === 'owner') {
+        setToken(data.access_token);
+        setUser(data.user);
+        const userObj = data.user;
+        if (userObj.role === 'owner') {
           setActivePage('owner-dashboard');
-        } else if (data.role === 'admin') {
+        } else if (userObj.role === 'admin') {
           setActivePage('admin-dashboard');
         } else {
           setActivePage('browse');
@@ -211,26 +300,32 @@ export const AppProvider = ({ children }) => {
       // Fallback local mock authentication
       if (email === 'student@bennett.edu.in' && password === 'student123') {
         setUser({ id: 1, name: "Rahul Sharma", email, role: "student" });
+        setToken("mock_student_token");
         setActivePage('browse');
         return { success: true };
       } else if (email === 'owner@bennett.edu.in' && password === 'owner123') {
         setUser({ id: 2, name: "Devendra Singh", email, role: "owner", outlet_id: 1 });
+        setToken("mock_owner_token_1");
         setActivePage('owner-dashboard');
         return { success: true };
       } else if (email === 'kathi_owner@bennett.edu.in' && password === 'owner123') {
         setUser({ id: 3, name: "Kathi Shop Owner", email, role: "owner", outlet_id: 2 });
+        setToken("mock_owner_token_2");
         setActivePage('owner-dashboard');
         return { success: true };
       } else if (email === 'maggi_owner@bennett.edu.in' && password === 'owner123') {
         setUser({ id: 4, name: "Maggi Shop Owner", email, role: "owner", outlet_id: 3 });
+        setToken("mock_owner_token_3");
         setActivePage('owner-dashboard');
         return { success: true };
       } else if (email === 'mess_coordinator@bennett.edu.in' && password === 'owner123') {
         setUser({ id: 6, name: "Mess Coordinator", email, role: "owner", outlet_id: 4 });
+        setToken("mock_owner_token_4");
         setActivePage('owner-dashboard');
         return { success: true };
       } else if (email === 'admin@bennett.edu.in' && password === 'admin123') {
         setUser({ id: 5, name: "Food Department Head", email, role: "admin" });
+        setToken("mock_admin_token");
         setActivePage('admin-dashboard');
         return { success: true };
       }
@@ -240,6 +335,7 @@ export const AppProvider = ({ children }) => {
 
   const logout = () => {
     setUser(null);
+    setToken(null);
     setCart([]);
     setActivePage('browse');
   };
@@ -257,12 +353,15 @@ export const AppProvider = ({ children }) => {
         ownerName = "Maggi Shop Owner";
       }
       setUser({ id: 10 + targetId, name: ownerName, email: ownerEmail, role: "owner", outlet_id: targetId });
+      setToken(`mock_owner_token_${targetId}`);
       setActivePage('owner-dashboard');
     } else {
       setUser({ id: 1, name: "Rahul Sharma", email: "student@bennett.edu.in", role: "student" });
+      setToken("mock_student_token");
       setActivePage('browse');
     }
   };
+
 
   // Cart Operations
   const addToCart = (item) => {
@@ -315,7 +414,7 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/orders?user_id=${user.id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(orderPayload)
       });
 
@@ -365,7 +464,7 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ status: newStatus })
       });
       if (response.ok) {
@@ -383,7 +482,7 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/outlets/${outletId}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ is_open: isOpen, name: '', location: '' })
       });
       if (response.ok) {
@@ -401,7 +500,7 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/menu-items/${itemId}/availability`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ is_available: isAvailable, name: '', price: 0.0, category: '' })
       });
       if (response.ok) {
@@ -422,7 +521,7 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/outlets/${outletId}/items`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(itemData)
       });
       if (response.ok) {
@@ -448,7 +547,7 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/menu-items/${itemId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(itemData)
       });
       if (response.ok) {
@@ -470,7 +569,8 @@ export const AppProvider = ({ children }) => {
   const deleteMenuItem = async (itemId) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/menu-items/${itemId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
       if (response.ok) {
         loadOutlets();
@@ -489,7 +589,9 @@ export const AppProvider = ({ children }) => {
 
   const loadAllUsers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/users`);
+      const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+        headers: getAuthHeaders()
+      });
       if (response.ok) {
         const data = await response.json();
         setUsers(data);
@@ -509,7 +611,7 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/outlets`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(outletData)
       });
       if (response.ok) {
@@ -531,7 +633,7 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/outlets/${outletId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(outletData)
       });
       if (response.ok) {
@@ -548,7 +650,8 @@ export const AppProvider = ({ children }) => {
   const deleteOutlet = async (outletId) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/outlets/${outletId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
       if (response.ok) {
         loadOutlets();
@@ -565,7 +668,7 @@ export const AppProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/outlet`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ outlet_id: outletId })
       });
       if (response.ok) {
@@ -615,7 +718,9 @@ export const AppProvider = ({ children }) => {
       addOutlet,
       editOutlet,
       deleteOutlet,
-      assignOwnerToOutlet
+      assignOwnerToOutlet,
+      theme,
+      toggleTheme
     }}>
       {children}
     </AppContext.Provider>

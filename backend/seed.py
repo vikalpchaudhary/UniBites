@@ -6,6 +6,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import SessionLocal, engine, Base
 from app import models
+from app.crud import hash_password
 
 def seed_db():
     print("Re-creating tables...")
@@ -15,11 +16,10 @@ def seed_db():
     db = SessionLocal()
     try:
         print("Creating users...")
-        # Password hash is prefix 'hashed_' for demo simplification
         student = models.User(
             name="Rahul Sharma",
             email="student@bennett.edu.in",
-            password_hash="hashed_student123",
+            password_hash=hash_password("student123"),
             role="student"
         )
         db.add(student)
@@ -27,7 +27,7 @@ def seed_db():
         admin = models.User(
             name="Food Department Head",
             email="admin@bennett.edu.in",
-            password_hash="hashed_admin123",
+            password_hash=hash_password("admin123"),
             role="admin"
         )
         db.add(admin)
@@ -78,28 +78,28 @@ def seed_db():
         owner1 = models.User(
             name="Devendra Singh",
             email="owner@bennett.edu.in",
-            password_hash="hashed_owner123",
+            password_hash=hash_password("owner123"),
             role="owner",
             outlet_id=devs_cafe.id
         )
         owner2 = models.User(
             name="Kathi Shop Owner",
             email="kathi_owner@bennett.edu.in",
-            password_hash="hashed_owner123",
+            password_hash=hash_password("owner123"),
             role="owner",
             outlet_id=kathi_junction.id
         )
         owner3 = models.User(
             name="Maggi Shop Owner",
             email="maggi_owner@bennett.edu.in",
-            password_hash="hashed_owner123",
+            password_hash=hash_password("owner123"),
             role="owner",
             outlet_id=maggi_hotspot.id
         )
         owner4 = models.User(
             name="Mess Coordinator",
             email="mess_coordinator@bennett.edu.in",
-            password_hash="hashed_owner123",
+            password_hash=hash_password("owner123"),
             role="owner",
             outlet_id=mess_outlet.id
         )
@@ -108,6 +108,7 @@ def seed_db():
         db.add(owner3)
         db.add(owner4)
         db.commit()
+
 
         print("Adding Dev's Cafe Menu Items...")
         dev_items = [

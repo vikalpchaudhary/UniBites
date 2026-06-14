@@ -1,8 +1,8 @@
 :root {
   /* Color Palette - Minimal & Light Premium */
   --bg-main: #f8fafc; /* Soft slate white */
-  --bg-card: #ffffff; /* Pure white */
-  --bg-card-hover: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.8); /* Translucent white */
+  --bg-card-hover: rgba(255, 255, 255, 0.95);
   --border-color: #e2e8f0; /* Soft slate gray */
   --border-focus: #f43f5e; /* Rose primary border focus */
   
@@ -25,9 +25,32 @@
   --radius-md: 16px;
   --radius-lg: 24px;
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  --shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
-  --shadow-hover: 0 12px 30px -4px rgba(15, 23, 42, 0.1), 0 4px 12px -2px rgba(15, 23, 42, 0.05);
-  --glass-blur: blur(16px);
+  --shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+  --shadow-hover: 0 12px 30px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+  --glass-blur: blur(20px);
+}
+
+[data-theme="dark"] {
+  --bg-main: #090d16; /* Glowing dark slate */
+  --bg-card: rgba(17, 24, 39, 0.65); /* Translucent gray-900 */
+  --bg-card-hover: rgba(17, 24, 39, 0.8);
+  --border-color: rgba(255, 255, 255, 0.08); /* Translucent subtle borders */
+  --border-focus: #ff4b72;
+  
+  --primary: #ff4b72; /* Glowing neon rose */
+  --primary-glow: rgba(255, 75, 114, 0.2);
+  --secondary: #60a5fa; /* Light blue */
+  --success: #34d399; /* Mint emerald */
+  --warning: #fbbf24;
+  --danger: #f87171;
+
+  --text-main: #f8fafc; /* Slate white */
+  --text-muted: #94a3b8; /* Muted gray */
+  --text-active: #ffffff;
+  
+  --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --shadow-hover: 0 12px 48px 0 rgba(0, 0, 0, 0.5);
+  --glass-blur: blur(25px);
 }
 
 * {
@@ -43,11 +66,18 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background-image: 
-    radial-gradient(at 0% 0%, rgba(244, 63, 94, 0.04) 0px, transparent 40%),
-    radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.04) 0px, transparent 40%);
+    radial-gradient(at 0% 0%, rgba(244, 63, 94, 0.05) 0px, transparent 45%),
+    radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.05) 0px, transparent 45%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+[data-theme="dark"] body {
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(255, 75, 114, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(96, 165, 250, 0.08) 0px, transparent 50%);
 }
 
 /* Custom Scrollbar */
@@ -63,6 +93,9 @@ body {
   border-radius: var(--radius-sm);
   border: 2px solid var(--bg-main);
 }
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
@@ -74,14 +107,17 @@ body {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow);
   transition: var(--transition);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 .glass-card:hover {
   background: var(--bg-card-hover);
-  border-color: rgba(244, 63, 94, 0.2);
+  border-color: rgba(244, 63, 94, 0.25);
   box-shadow: var(--shadow-hover);
   transform: translateY(-2px);
 }
+
 
 /* Buttons */
 .btn-primary {
@@ -190,7 +226,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--bg-card);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border-bottom: 1px solid var(--border-color);
@@ -249,13 +285,13 @@ body {
   display: block;
   font-size: 0.88rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
 .form-input {
   width: 100%;
-  background: #ffffff;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-main);
   padding: 12px 16px;
@@ -269,7 +305,7 @@ body {
 .form-input:focus {
   outline: none;
   border-color: var(--primary);
-  background: #ffffff;
+  background: var(--bg-card-hover);
   box-shadow: 0 0 0 3px var(--primary-glow);
 }
 

@@ -4,22 +4,40 @@ import { useApp } from '../context/AppContext';
 export default function Browse() {
   const { outlets, setSelectedOutletId, setActivePage } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [vegOnly, setVegOnly] = useState(false);
+  const [openOnly, setOpenOnly] = useState(false);
 
   const handleSelectOutlet = (id) => {
     setSelectedOutletId(id);
     setActivePage('outlet-detail');
   };
 
+  // Get unique categories across all outlets/items dynamically
+  const allCategories = [
+    'All',
+    ...new Set(outlets.flatMap(outlet => (outlet.items || []).map(item => item.category)))
+  ];
+
   const filteredOutlets = outlets.filter(outlet => {
+    // 1. Search Query Filter
     const matchesName = outlet.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesLocation = outlet.location.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Check if any items inside the menu match search
     const matchesItems = outlet.items && outlet.items.some(item => 
       item.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
+    const matchesSearch = matchesName || matchesLocation || matchesItems;
 
-    return matchesName || matchesLocation || matchesItems;
+    // 2. Open Status Filter
+    const matchesOpen = !openOnly || outlet.is_open;
+
+    // 3. Category Filter
+    const matchesCategory = selectedCategory === 'All' || (outlet.items && outlet.items.some(item => item.category === selectedCategory));
+
+    // 4. Veg Filter
+    const matchesVeg = !vegOnly || (outlet.items && outlet.items.some(item => item.is_veg));
+
+    return matchesSearch && matchesOpen && matchesCategory && matchesVeg;
   });
 
   return (
@@ -61,6 +79,65 @@ export default function Browse() {
           />
           <span style={{ position: 'absolute', left: '20px', top: '16px', color: 'var(--text-muted)', fontSize: '1.2rem' }}>🔍</span>
         </div>
+
+        {/* Veg/Open Checkbox Row */}
+        <div 
+          style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            gap: '24px', 
+            marginTop: '20px',
+            flexWrap: 'wrap'
+          }}
+        >
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-main)', userSelect: 'none' }}>
+            <input 
+              type="checkbox" 
+              checked={openOnly} 
+              onChange={(e) => setOpenOnly(e.target.checked)}
+              style={{ accentColor: 'var(--primary)', width: '16px', height: '16px' }}
+            />
+            🟢 Open Now
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-main)', userSelect: 'none' }}>
+            <input 
+              type="checkbox" 
+              checked={vegOnly} 
+              onChange={(e) => setVegOnly(e.target.checked)}
+              style={{ accentColor: 'var(--success)', width: '16px', height: '16px' }}
+            />
+            🍀 Veg Friendly
+          </label>
+        </div>
+      </div>
+
+      {/* Category Filter Selectors */}
+      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px', color: 'var(--text-muted)' }}>
+        🎯 Browse by Food Category
+      </h3>
+      <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '32px', maxWidth: '100%' }}>
+        {allCategories.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setSelectedCategory(cat)}
+            style={{
+              background: selectedCategory === cat ? 'var(--primary)' : 'var(--bg-card)',
+              color: selectedCategory === cat ? 'white' : 'var(--text-muted)',
+              border: '1px solid var(--border-color)',
+              padding: '10px 20px',
+              borderRadius: '24px',
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              fontWeight: 600,
+              boxShadow: selectedCategory === cat ? '0 4px 12px rgba(244, 63, 94, 0.15)' : 'var(--shadow)',
+              transition: 'var(--transition)'
+            }}
+          >
+            {cat}
+          </button>
+        ))}
       </div>
 
       {/* Main Grid */}
@@ -70,8 +147,8 @@ export default function Browse() {
 
       {filteredOutlets.length === 0 ? (
         <div className="glass-card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <h3>No outlets found matching "{searchQuery}"</h3>
-          <p style={{ marginTop: '8px' }}>Try searching something else like "Tea", "Roll", or "Sandwich".</p>
+          <h3>No outlets found matching the selected filters</h3>
+          <p style={{ marginTop: '8px' }}>Try resetting your filters or search query.</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '30px' }}>

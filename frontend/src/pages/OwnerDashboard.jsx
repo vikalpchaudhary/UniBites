@@ -106,6 +106,17 @@ export default function OwnerDashboard() {
 
   const totalRevenue = completedOrders.reduce((sum, o) => sum + o.total_amount, 0);
   const averageBill = completedOrders.length > 0 ? (totalRevenue / completedOrders.length) : 0;
+  const completionRate = myOrders.length > 0 ? (completedOrders.length / myOrders.length) * 100 : 0;
+
+  const revenueByCategory = {};
+  completedOrders.forEach(order => {
+    (order.items || []).forEach(item => {
+      const category = item.menu_item?.category || 'General';
+      const amount = item.price_at_order * item.quantity;
+      revenueByCategory[category] = (revenueByCategory[category] || 0) + amount;
+    });
+  });
+  const maxRevenue = Math.max(...Object.values(revenueByCategory), 0);
 
   // History orders (newest first)
   const historyOrders = myOrders
@@ -178,6 +189,34 @@ export default function OwnerDashboard() {
         <div className="glass-card" style={{ padding: '24px', textAlign: 'center', borderColor: 'var(--success)' }}>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Revenue</span>
           <h2 style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--success)', marginTop: '8px' }}>₹{totalRevenue.toFixed(2)}</h2>
+        </div>
+        <div className="glass-card" style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderColor: 'var(--secondary)' }}>
+          <div style={{ textAlign: 'left' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Queue Progress</span>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '4px' }}>
+              {completedOrders.length} / {myOrders.length}
+            </h2>
+          </div>
+          <div style={{ position: 'relative', width: '64px', height: '64px' }}>
+            <svg width="64" height="64" viewBox="0 0 72 72" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="36" cy="36" r="30" stroke="var(--border-color)" strokeWidth="6" fill="transparent" />
+              <circle 
+                cx="36" 
+                cy="36" 
+                r="30" 
+                stroke="var(--secondary)" 
+                strokeWidth="6" 
+                fill="transparent" 
+                strokeDasharray="188.4" 
+                strokeDashoffset={188.4 - (188.4 * completionRate) / 100}
+                strokeLinecap="round"
+                style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+              />
+            </svg>
+            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-main)' }}>
+              {Math.round(completionRate)}%
+            </div>
+          </div>
         </div>
       </div>
 
@@ -351,6 +390,37 @@ export default function OwnerDashboard() {
                   <h4 style={{ margin: '4px 0 0 0', color: 'var(--danger)', fontSize: '1.2rem', fontWeight: 700 }}>{cancelledOrders.length}</h4>
                 </div>
               </div>
+
+              {/* Sales by Category SVG Chart */}
+              {completedOrders.length > 0 && Object.keys(revenueByCategory).length > 0 && (
+                <div className="glass-card" style={{ padding: '24px', marginBottom: '24px' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px' }}>📊 Revenue by Food Category</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {Object.entries(revenueByCategory).map(([cat, rev]) => {
+                      const percentage = maxRevenue > 0 ? (rev / maxRevenue) * 100 : 0;
+                      return (
+                        <div key={cat} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                            <span style={{ fontWeight: 600 }}>{cat}</span>
+                            <span style={{ color: 'var(--text-muted)' }}>₹{rev.toFixed(2)} ({Math.round((rev / totalRevenue) * 100)}%)</span>
+                          </div>
+                          <div style={{ height: '8px', background: 'var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div 
+                              style={{ 
+                                height: '100%', 
+                                width: `${percentage}%`, 
+                                background: 'linear-gradient(90deg, var(--primary), var(--secondary))', 
+                                borderRadius: '4px',
+                                transition: 'width 0.8s ease'
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Filters Panel */}
               <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>

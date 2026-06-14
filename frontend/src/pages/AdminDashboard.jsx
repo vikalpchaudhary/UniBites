@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, API_BASE_URL } from '../context/AppContext';
 
 export default function AdminDashboard() {
   const {
@@ -33,30 +33,53 @@ export default function AdminDashboard() {
     totalOrders: 0
   });
 
+  const [outletStatsList, setOutletStatsList] = useState([]);
+  const [hoveredBar, setHoveredBar] = useState(null);
+
   // Fetch stats for all outlets in a loop to compute global metrics
   useEffect(() => {
     const fetchGlobalStats = async () => {
       let totalRev = 0;
       let totalOrd = 0;
+      const stats = [];
 
       for (const outlet of outlets) {
         try {
-          const res = await fetch(`http://127.0.0.1:8000/api/outlets/${outlet.id}/stats`);
+          const res = await fetch(`${API_BASE_URL}/api/outlets/${outlet.id}/stats`);
           if (res.ok) {
             const data = await res.json();
-            totalRev += data.total_revenue || 0;
-            totalOrd += data.total_orders || 0;
+            const rev = data.total_revenue || 0;
+            const ord = data.total_orders || 0;
+            totalRev += rev;
+            totalOrd += ord;
+            stats.push({
+              id: outlet.id,
+              name: outlet.name,
+              revenue: rev,
+              orders: ord
+            });
+          } else {
+            throw new Error('Not ok');
           }
         } catch (e) {
           // If backend is down, use a randomized mock calculation
-          totalRev += outlet.id * 1500;
-          totalOrd += outlet.id * 12;
+          const rev = outlet.id * 1500;
+          const ord = outlet.id * 12;
+          totalRev += rev;
+          totalOrd += ord;
+          stats.push({
+            id: outlet.id,
+            name: outlet.name,
+            revenue: rev,
+            orders: ord
+          });
         }
       }
       setGlobalStats({
         totalRevenue: totalRev,
         totalOrders: totalOrd
       });
+      setOutletStatsList(stats);
     };
 
     fetchGlobalStats();
@@ -109,7 +132,7 @@ export default function AdminDashboard() {
     setOwnerError('');
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/auth/register', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -188,6 +211,175 @@ export default function AdminDashboard() {
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Cumulative Revenue</span>
           <h2 style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--success)', marginTop: '8px' }}>₹{globalStats.totalRevenue.toFixed(2)}</h2>
         </div>
+      </div>
+
+      {/* SVG Analytics Comparison Card */}
+      <div className="glass-card" style={{ padding: '28px', marginBottom: '40px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>📈 Campus Outlets Performance</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '4px' }}>Real-time revenue comparison across all university tuck shops & dining outlets</p>
+          </div>
+          {hoveredBar ? (
+            <div style={{ background: 'var(--primary-glow)', border: '1px solid var(--primary)', borderRadius: '8px', padding: '6px 12px', fontSize: '0.85rem', color: 'var(--text-main)', transition: 'all 0.2s' }}>
+              <strong>{hoveredBar.name}</strong>: <span style={{ color: 'var(--success)', fontWeight: 700 }}>₹{hoveredBar.revenue.toFixed(2)}</span> ({hoveredBar.orders} orders)
+            </div>
+          ) : (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', padding: '6px 12px' }}>
+              Hover over a bar to see details
+            </div>
+          )}
+        </div>
+
+        {outletStatsList.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            Loading comparative statistics...
+          </div>
+        ) : (
+          <div style={{ width: '100%', overflowX: 'auto' }}>
+            <svg 
+              width="100%" 
+              height="320" 
+              viewBox="0 0 800 320" 
+              preserveAspectRatio="xMidYMid meet"
+              style={{ overflow: 'visible' }}
+            >
+              <defs>
+                <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--primary)" />
+                  <stop offset="100%" stopColor="var(--secondary)" stopOpacity="0.8" />
+                </linearGradient>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="4" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+
+              {/* Horizontal Grid lines */}
+              {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
+                const maxRevenue = Math.max(...outletStatsList.map(o => o.revenue), 1000);
+                const val = maxRevenue * ratio;
+                const yPos = 30 + 230 * (1 - ratio);
+                return (
+                  <g key={index}>
+                    <line 
+                      x1="60" 
+                      y1={yPos} 
+                      x2="770" 
+                      y2={yPos} 
+                      stroke="var(--border-color)" 
+                      strokeWidth="1" 
+                      strokeDasharray="4 6" 
+                      opacity="0.6"
+                    />
+                    <text 
+                      x="50" 
+                      y={yPos + 4} 
+                      fill="var(--text-muted)" 
+                      fontSize="10" 
+                      fontWeight="600"
+                      textAnchor="end"
+                    >
+                      ₹{Math.round(val)}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* Bars */}
+              {(() => {
+                const maxRevenue = Math.max(...outletStatsList.map(o => o.revenue), 1000);
+                const margin = { top: 30, right: 30, bottom: 60, left: 60 };
+                const chartWidth = 800 - margin.left - margin.right;
+                const chartHeight = 320 - margin.top - margin.bottom;
+                const n = outletStatsList.length;
+                const barGap = 24;
+                const barWidth = n > 0 ? (chartWidth / n) - barGap : 0;
+
+                return outletStatsList.map((stat, idx) => {
+                  const xPos = margin.left + idx * (barWidth + barGap) + barGap / 2;
+                  const barHeight = (stat.revenue / maxRevenue) * chartHeight;
+                  const yPos = margin.top + chartHeight - barHeight;
+
+                  return (
+                    <g 
+                      key={stat.id}
+                      onMouseEnter={() => setHoveredBar(stat)}
+                      onMouseLeave={() => setHoveredBar(null)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {/* Bar Rectangle */}
+                      <rect
+                        x={xPos}
+                        y={yPos}
+                        width={barWidth}
+                        height={Math.max(barHeight, 4)}
+                        fill="url(#barGrad)"
+                        rx="6"
+                        ry="6"
+                        style={{
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          filter: hoveredBar?.id === stat.id ? 'url(#glow)' : 'none',
+                          opacity: hoveredBar && hoveredBar.id !== stat.id ? 0.6 : 1
+                        }}
+                      />
+                      
+                      {/* Text value inside or above the bar */}
+                      <text
+                        x={xPos + barWidth / 2}
+                        y={yPos - 8}
+                        fill="var(--text-main)"
+                        fontSize="11"
+                        fontWeight="700"
+                        textAnchor="middle"
+                        style={{
+                          opacity: hoveredBar?.id === stat.id ? 1 : 0.8,
+                          transition: 'opacity 0.2s'
+                        }}
+                      >
+                        ₹{stat.revenue.toFixed(0)}
+                      </text>
+
+                      {/* X-axis Outlet Name Label */}
+                      <text
+                        x={xPos + barWidth / 2}
+                        y={margin.top + chartHeight + 20}
+                        fill="var(--text-main)"
+                        fontSize="12"
+                        fontWeight="600"
+                        textAnchor="middle"
+                      >
+                        {stat.name.length > 18 ? `${stat.name.slice(0, 16)}...` : stat.name}
+                      </text>
+
+                      {/* Sub-label for orders */}
+                      <text
+                        x={xPos + barWidth / 2}
+                        y={margin.top + chartHeight + 36}
+                        fill="var(--text-muted)"
+                        fontSize="10"
+                        fontWeight="500"
+                        textAnchor="middle"
+                      >
+                        {stat.orders} orders
+                      </text>
+                    </g>
+                  );
+                });
+              })()}
+
+              {/* Bottom Baseline */}
+              <line 
+                x1="60" 
+                y1="260" 
+                x2="770" 
+                y2="260" 
+                stroke="var(--border-color)" 
+                strokeWidth="1.5"
+              />
+            </svg>
+          </div>
+        )}
       </div>
 
       {/* Main Control Layout */}

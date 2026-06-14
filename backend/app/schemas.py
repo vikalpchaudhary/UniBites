@@ -22,6 +22,12 @@ class UserResponse(UserBase):
     class Config:
         from_attributes = True
 
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
 class UserOutletAssign(BaseModel):
     outlet_id: Optional[int] = None
 
